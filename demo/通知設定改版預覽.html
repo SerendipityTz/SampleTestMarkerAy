@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>通知設定改版預覽</title>
+<style>
+  /* 直接沿用 assets/css/main.css 裡 .system-alarm-page / .YAMIS-Card 的實際數值與配色，
+     只在「通知設定」區塊之後，加上部門收件人 + 通知彙整偏好兩個新區塊。 */
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:#131313;
+    color:#dee2e6;
+    font-family:"微軟正黑體",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  }
+
+  .page{max-width:1000px;margin:0 auto;padding:40px 20px 90px;}
+  /* 列表頁／檢視資料頁：對照真實 .YAMIS-Section 沒有寬度限制，全版展示 */
+  .page-full{max-width:none;margin:0;padding:0 32px 90px;}
+  .page-full .standalone-title{margin-top:36px;}
+  .page-full > .standalone-title:first-child{margin-top:0;}
+
+  .page-note{max-width:720px;margin-bottom:26px;}
+  .page-note .eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6ea8fe;font-weight:700;margin-bottom:8px;}
+  .page-note h1{font-size:22px;margin:0 0 10px;color:#fff;}
+  .page-note p{font-size:13.5px;color:#9aa0a6;margin:0;line-height:1.6;}
+
+  .legend{display:flex;gap:18px;margin-bottom:26px;flex-wrap:wrap;font-size:12px;color:#9aa0a6;}
+  .legend .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px;}
+  .legend .sw.now{background:#333;border:1px solid #555;}
+  .legend .sw.new{background:#2f7d5c;}
+
+  /* ---- modal-content 仿真容器 ---- */
+  .modal-mock{
+    background:#212529;
+    border:1px solid #373b3e;
+    border-radius:.5rem;
+    box-shadow:0 1rem 3rem rgba(0,0,0,.5);
+    overflow:hidden;
+  }
+  .modal-mock .modal-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:1rem 1.25rem;
+    border-bottom:1px solid #373b3e;
+  }
+  .modal-mock .modal-header h5{margin:0;font-size:1.15rem;color:#fff;font-weight:500;}
+  .modal-mock .modal-header .close{background:none;border:none;color:#9aa0a6;font-size:1.4rem;cursor:pointer;line-height:1;}
+
+  .YAMIS-Card{border-radius:0 0 .2rem .2rem;border:1px solid #333;padding-top:1.5rem;}
+  .YAMIS-Card .row{
+    display:grid;
+    grid-template-columns:160px minmax(0,1fr);
+    align-items:center;
+    padding:20px 1.25rem;
+    border-bottom:1px solid #1a1a1a;
+    gap:8px;
+  }
+  .YAMIS-Card .row:first-child{padding-top:0;}
+  .YAMIS-Card .row.compact{padding:12px 1.25rem;opacity:.55;}
+  .row-label{font-size:16px;font-weight:700;color:#d8d8d8;}
+  .row-label small{display:block;color:#757575;font-size:12px;margin-top:3px;font-weight:400;}
+  .row-body{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%;}
+  .row-body.d-block{display:block;}
+
+  .form-select, .form-control{
+    background:#fff;color:#1a1a1a;
+    border:1px solid #444;border-radius:4px;
+    padding:6px 10px;font-size:14px;font-family:inherit;
+  }
+
+  .unit-text{font-size:15px;color:#c8c8c8;}
+
+  .scope-toggle{display:inline-flex;}
+  .scope-btn, .weekday-btn{
+    display:inline-flex;align-items:center;justify-content:center;
+    height:32px;padding:0 16px;
+    border:1px solid #444;background:#fff;color:#1a1a1a;
+    cursor:pointer;font-size:15px;font-family:inherit;
+    transition:all .15s;
+  }
+  .scope-btn:first-child{border-radius:4px 0 0 4px;}
+  .scope-btn:last-child{border-radius:0 4px 4px 0;border-left:none;}
+  .scope-btn.active{background:#4078c0;border-color:#4078c0;color:#fff;}
+
+  .weekday-btn{width:32px;height:32px;padding:0;border-radius:4px;font-weight:500;}
+  .weekday-btn + .weekday-btn{margin-left:4px;}
+  .weekday-btn.active{background:#4078c0;border-color:#4078c0;color:#fff;}
+  .weekday-picker{display:flex;}
+
+  .mode-sub{display:none;align-items:center;gap:4px;flex-wrap:wrap;margin-top:8px;width:100%;}
+  .mode-sub.show{display:flex;}
+  .mode-sub.mode-col{flex-direction:column;align-items:flex-start;}
+  .mode-sub.mode-col.show{display:flex;}
+
+  .check-row{display:flex;flex-wrap:wrap;gap:16px;padding-bottom:4px;}
+  .check{display:inline-flex;align-items:center;gap:7px;color:#e8e8e8;font-size:14px;cursor:pointer;user-select:none;}
+  .check input{width:15px;height:15px;accent-color:#4078c0;cursor:pointer;}
+
+  .notif-block{
+    width:100%;margin-top:10px;padding:12px 14px;
+    background:#1a1a1a;border:1px solid #333;border-radius:4px;
+  }
+  .notif-title{font-size:13px;color:#757575;letter-spacing:.05em;margin-bottom:8px;}
+  .notif-hint{font-size:12px;color:#9aa0a6;margin-top:6px;}
+
+  .email-tags{
+    display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+    padding:6px 8px;border:1px solid #444;border-radius:4px;background:#fff;min-height:36px;
+  }
+  .email-tag{
+    display:inline-flex;align-items:center;gap:5px;
+    background:#e4e4e4;border:1px solid #aaa;color:#333;
+    padding:2px 8px;border-radius:4px;font-size:13px;
+  }
+  .email-tag .x{opacity:.6;cursor:pointer;}
+  .email-input-field{border:none;outline:none;flex:1;min-width:120px;font-size:13px;background:transparent;color:#1a1a1a;}
+  .email-input-field::placeholder{color:#8a8a8a;}
+
+  .pill-select{
+    display:flex;flex-wrap:wrap;gap:6px;
+  }
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    background:#fff;color:#1a1a1a;border:1px solid #444;
+    padding:5px 12px;border-radius:4px;font-size:13.5px;cursor:pointer;user-select:none;
+  }
+  .pill.selected{background:#4078c0;border-color:#4078c0;color:#fff;}
+  .pill.dashed{border-style:dashed;}
+
+  /* ---- 警報欄位：下拉式複選 ---- */
+  .multiselect{position:relative;display:inline-block;min-width:280px;}
+  .multiselect-toggle{
+    width:100%;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    background:#fff;color:#1a1a1a;
+    border:1px solid #444;border-radius:4px;
+    padding:6px 10px;font-size:14px;font-family:inherit;cursor:pointer;text-align:left;
+  }
+  .multiselect-toggle .chev{color:#6b7280;font-size:12px;flex:none;}
+  .multiselect.open .multiselect-toggle{border-color:#4078c0;}
+  .multiselect-panel{
+    display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:100%;z-index:20;
+    background:#fff;border:1px solid #444;border-radius:6px;
+    box-shadow:0 8px 24px rgba(0,0,0,.45);
+    padding:6px;
+  }
+  .multiselect.open .multiselect-panel{display:block;}
+  .ms-option{
+    display:flex;align-items:center;gap:8px;
+    padding:7px 10px;border-radius:4px;font-size:13.5px;color:#1a1a1a;
+    cursor:pointer;white-space:nowrap;
+  }
+  .ms-option:hover{background:#f0f2f4;}
+  .ms-option input{width:15px;height:15px;accent-color:#4078c0;cursor:pointer;}
+  .ms-sep{height:1px;background:#e5e7eb;margin:4px 6px;}
+
+  /* ---- 觸發條件分頁（警報欄位改複選後） ---- */
+  .tab-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+  .tab-btn{
+    appearance:none;border:1px solid #444;background:#1a1a1a;color:#9aa0a6;
+    padding:7px 14px;border-radius:6px 6px 0 0;font-size:13.5px;font-family:inherit;
+    cursor:pointer;border-bottom:none;position:relative;top:1px;
+  }
+  .tab-btn.active{background:#2b2f31;color:#fff;border-color:#4078c0;border-bottom:2px solid #2b2f31;font-weight:600;}
+  .tab-panel{display:none;background:#2b2f31;border:1px solid #4078c0;border-radius:0 6px 6px 6px;padding:16px;}
+  .tab-panel.show{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .tab-panel .panel-empty{color:#9aa0a6;font-size:13px;}
+  .trigger-empty{color:#9aa0a6;font-size:13px;padding:10px 2px;}
+
+  /* ---- NEW 標記 ---- */
+  .new-row{position:relative;}
+  .new-row::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#2f7d5c;
+  }
+  .badge-new{
+    font-size:10px;font-weight:700;letter-spacing:.04em;
+    background:rgba(47,125,92,.18);color:#5cbd93;border:1px solid rgba(92,189,147,.4);
+    padding:2px 7px;border-radius:999px;margin-left:8px;vertical-align:2px;
+  }
+
+  .section-gap{height:34px;}
+
+  /* ---- demo email (信件本身永遠是亮色，跟 App 主題無關) ---- */
+  .demo-card{margin-top:26px;background:#212529;border:1px solid #373b3e;border-radius:.5rem;padding:20px 22px;box-shadow:0 1rem 3rem rgba(0,0,0,.4);}
+  .demo-card h3{font-size:14px;color:#fff;margin:0 0 6px;}
+  .demo-card p.hint{font-size:12.5px;color:#9aa0a6;margin:0 0 14px;line-height:1.6;}
+  .persona-seg{margin-bottom:14px;}
+  .subs-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+  .subs-row label{display:inline-flex;align-items:center;gap:6px;background:#1a1a1a;border:1px solid #333;color:#c8c8c8;padding:5px 10px;border-radius:4px;font-size:12.5px;}
+
+  .seg{display:inline-flex;border:1px solid #444;border-radius:4px;overflow:hidden;}
+  .seg button{
+    appearance:none;border:none;background:#fff;color:#1a1a1a;
+    padding:6px 14px;font-size:13.5px;font-family:inherit;cursor:pointer;
+    border-right:1px solid #444;
+  }
+  .seg button:last-child{border-right:none;}
+  .seg button.active{background:#4078c0;color:#fff;font-weight:600;}
+
+  .mail-frame{border:1px solid #444;border-radius:8px;overflow:hidden;background:#e8eaed;}
+  .mail-chrome{padding:12px 16px;background:#f2f3f5;border-bottom:1px solid #d9dbde;font-family:"微軟正黑體",system-ui,sans-serif;font-size:12px;color:#3a4046;}
+  .mail-chrome .subject{font-size:13px;font-weight:600;color:#161a1e;margin-bottom:6px;}
+  .mail-chrome .row{display:flex;gap:6px;}
+  .mail-chrome .row .k{color:#7a828a;flex:none;width:34px;}
+  .mail-frame iframe{display:block;width:100%;border:0;background:#fff;}
+  .mm-empty{margin-top:10px;font-size:12.5px;color:#9aa0a6;background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:10px 14px;}
+
+  /* ---- 圖文說明：自動合併怎麼運作（給 PM／使用者看，避免術語） ---- */
+  .explainer{margin-bottom:10px;}
+  .explainer-title{font-size:19px;color:#fff;margin:0 0 10px;font-weight:700;}
+  .explainer-lead{font-size:13.5px;color:#c8c8c8;line-height:1.8;max-width:78ch;margin:0 0 26px;}
+
+  .flow{display:flex;align-items:stretch;gap:10px;margin-bottom:20px;}
+  .flow-step{
+    flex:1;min-width:0;
+    background:#212529;border:1px solid #373b3e;border-radius:12px;
+    padding:20px 16px;text-align:left;box-shadow:0 1rem 3rem rgba(0,0,0,.35);
+    position:relative;
+  }
+  .flow-icon{font-size:26px;margin-bottom:6px;}
+  .flow-num{
+    position:absolute;top:14px;right:14px;
+    width:22px;height:22px;border-radius:50%;
+    background:#2f7d5c;color:#fff;font-size:12px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .flow-step h4{font-size:14.5px;color:#fff;margin:4px 0 8px;}
+  .flow-step p{font-size:12.5px;color:#9aa0a6;line-height:1.6;margin:0;}
+  .flow-arrow{
+    display:flex;align-items:center;justify-content:center;
+    color:#4078c0;font-size:20px;flex:none;width:20px;
+  }
+  @media (max-width:900px){
+    .flow{flex-direction:column;}
+    .flow-arrow{transform:rotate(90deg);width:auto;padding:2px 0;}
+  }
+
+  .explainer-note{
+    background:#1a1a1a;border:1px solid #333;border-left:3px solid #4078c0;
+    border-radius:8px;padding:14px 18px;font-size:13px;color:#c8c8c8;line-height:1.7;
+  }
+
+  /* ---- 警報設定列表 Alerts-Setting.jsp demo ----
+     以下數值直接取自 SLAB/ModelDesign/Alerts-Setting/css/Alerts.css 實際規則：
+     .AlertsCard / .YAMIS-Table / .Table-Striped / .AlertsCard .badge-*，
+     不是另外設計的樣式。 */
+  .list-demo{
+    background:#292929;border-radius:.2rem;padding:.75rem;
+  }
+  .list-demo-head{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:.75rem;
+  }
+  .list-demo-head h5{
+    margin:0;font-size:1.125em;font-weight:bold;color:#fff;
+    position:relative;padding-left:1.25rem;
+  }
+  .list-demo-head h5::before{
+    content:"";position:absolute;top:.5rem;left:.25rem;
+    width:6px;height:6px;border-radius:50%;
+    background-color:rgba(255,255,255,.5);
+    box-shadow:0 0 0 3px rgba(255,255,255,.25);
+  }
+  .list-search{
+    display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;
+    margin-bottom:.75rem;
+  }
+  .ls-field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:220px;}
+  .ls-field label{font-size:.75rem;color:#F5F9F9;font-weight:normal;}
+  .ls-field label small{display:block;font-size:10px;color:#999;}
+
+  .tbl-scroll{overflow-x:auto;}
+  table.list-table{width:100%;background-color:transparent;font-size:.875em;border-collapse:collapse;}
+  table.list-table thead th{
+    text-align:left;padding:.5rem;
+    background:#424242;border-top:solid 1px #666;border-bottom:solid 2px #666;
+    font-weight:bold;font-size:.75em;color:#F5F9F9;white-space:nowrap;
+  }
+  table.list-table thead th span{display:none;}
+  table.list-table tbody td{
+    padding:.75rem .5rem;vertical-align:top;color:#F5F9F9;
+    border-bottom:solid 1px rgba(102,102,102,.25);
+  }
+  table.list-table tbody tr:nth-child(2n){background:#323232;}
+  table.list-table tbody tr{transition:all .3s ease-in-out;}
+  table.list-table tbody tr:hover{box-shadow:inset 0 0 0 9999px rgba(0,0,0,.3);}
+
+  .trig-badge{
+    display:inline-block;border-radius:3px;padding:.25rem .5rem;font-size:.75rem;
+  }
+  .trig-on{background:rgba(219,55,59,.25);color:#eea3a5;}
+  .trig-off{background:rgba(255,255,255,.08);color:#999;}
+
+  .ops{white-space:nowrap;}
+
+  /* 操作按鈕：直接對照 plugins.js 產生的真實 View/Edit/Delete 按鈕
+     （btn-primary #0d6efd／btn-warning #ffc107／btn-danger #dc3545），
+     圖示用簡化線條 SVG 代替 Font Awesome（Artifact 環境無法載入 FA 字型）。 */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;
+    border:1px solid transparent;border-radius:.25rem;
+    padding:.375rem .75rem;font-size:1rem;
+    font-weight:400;cursor:pointer;white-space:nowrap;
+  }
+  .btn-sm{padding:.25rem .5rem;font-size:.875rem;border-radius:.2rem;}
+  .mr-1{margin-right:.25rem;}
+  .btn-primary{background:#0d6efd;border-color:#0d6efd;color:#fff;}
+  .btn-warning{background:#ffc107;border-color:#ffc107;color:#000;}
+  .btn-danger{background:#dc3545;border-color:#dc3545;color:#fff;}
+  /* 真實 Bootstrap outline 按鈕，顏色取自 Alerts.css 的 .btn-outline-primary / .btn-outline-light */
+  .btn-outline-primary{background:transparent;border-color:#45a9ff;color:#45a9ff;}
+  .btn-outline-light{background:transparent;border-color:#e6e6e6;color:#e6e6e6;}
+  .btn-ic{width:12px;height:12px;margin-right:.4rem;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+
+  /* 分頁：對照 Alerts.css 裡 .dataTables_paginate .paginate_button 實際規則 */
+  .dataTables_paginate{display:flex;justify-content:flex-end;gap:.125rem;margin-top:.75rem;}
+  .paginate_button{
+    padding:.5rem .75rem;line-height:1.25;font-size:.875em;
+    color:#fff;background-color:transparent;
+    border:solid 1px #999;border-radius:.2rem;cursor:pointer;
+  }
+  .paginate_button.disabled{color:#666;border-color:#666;cursor:default;}
+  .paginate_button.current,
+  .paginate_button:hover:not(.disabled){color:#1a1a1a;background:#fff;}
+
+  .list-note{font-size:.75rem;color:#999;margin:12px 2px 0;}
+
+  /* ---- Alerts-Setting-Detail.jsp demo：資訊格對照 .YAMIS-Table-grid / .grig-td ---- */
+  .info-grid{
+    display:grid;grid-template-columns:1fr 1fr;
+    border-top:solid 1px rgba(102,102,102,.25);border-left:solid 1px rgba(102,102,102,.25);
+    font-size:.875em;
+  }
+  .info-cell{
+    display:flex;
+    border-right:solid 1px rgba(102,102,102,.25);border-bottom:solid 1px rgba(102,102,102,.25);
+  }
+  .info-cell.wide{grid-column:1 / -1;}
+  .info-label{
+    flex:none;width:160px;background-color:#323232;font-weight:bolder;
+    padding:.5rem;color:#F5F9F9;
+  }
+  .info-label span{display:block;width:100%;font-size:.75em;color:#999;font-weight:normal;}
+  .info-value{padding:.5rem;align-self:center;color:#F5F9F9;flex:1;}
+  @media (max-width:760px){
+    .info-grid{grid-template-columns:1fr;}
+  }
+
+  .field-tag{
+    display:inline-block;background:#454545;color:#ccc;
+    font-size:.7rem;padding:1px 7px;border-radius:3px;margin-right:6px;
+  }
+  .cond-line{margin-bottom:4px;}
+  .cond-line:last-child{margin-bottom:0;}
+
+  .chip-mock{
+    display:inline-flex;align-items:center;height:35px;
+    background:#1f3a8f;color:#bcd3ff;padding:0 .7rem;border-radius:999px;
+    font-size:.85rem;font-weight:500;
+  }
+
+  /* 勾選事件後出現的批次編輯列，取代原本的 All Clear 按鈕 */
+  .bulk-bar{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    background:#1f3a8f;color:#bcd3ff;padding:.4rem .75rem;border-radius:6px;
+  }
+  .bulk-bar .bulk-text{font-size:.85rem;font-weight:500;white-space:nowrap;}
+  .bulk-bar select.form-select{height:35px;}
+  .bulk-bar .btn{height:35px;}
+
+  footer.foot{margin-top:44px;font-size:11px;color:#6b7178;}
+
+  @media (max-width:820px){
+    .YAMIS-Card .row{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="page-note">
+    <div class="eyebrow">SRP_Alarm · Alerts-Setting-Detail 提案草稿</div>
+    <h1>通知設定改版預覽</h1>
+    <p>直接沿用「警報設定」現有 Modal 的實際樣式（深色卡片、白底表單元件、160px 標籤欄），只在原本「通知設定」那一列之後加東西，其餘列維持原樣、只列出重點做背景對照。</p>
+  </div>
+
+  <div class="legend">
+    <span><span class="sw now"></span>現有畫面，樣式與行為不變</span>
+    <span><span class="sw new"></span>新增內容</span>
+  </div>
+
+  <!-- ============ 現有警報設定 Modal（原樣，中間帶過） ============ -->
+  <div class="modal-mock">
+    <div class="modal-header">
+      <h5>警報設定 Alerts Setting</h5>
+      <button class="close">&times;</button>
+    </div>
+
+    <div class="YAMIS-Card">
+
+      <div class="row">
+        <div class="row-label">警報類型 <small>Alerts Type</small></div>
+        <div class="row-body">
+          <select id="form-type" class="form-select">
+            <option value="voyage">航次警報</option>
+            <option value="cii">CII 評等警報</option>
+            <option value="bunker">Bunker 管理警報</option>
+            <option value="crew" selected>船員管理警報</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row new-row">
+        <div class="row-label">警報欄位 <small>Alerts Field</small><span class="badge-new">改複選</span></div>
+        <div class="row-body d-block">
+          <div class="multiselect" id="fieldMultiselect">
+            <button type="button" class="multiselect-toggle" id="fieldToggle">
+              <span id="fieldToggleText">證書到期</span>
+              <span class="chev">▾</span>
+            </button>
+            <div class="multiselect-panel" id="fieldPanel">
+              <label class="ms-option"><input type="checkbox" data-field="cerexp" checked> 證書到期</label>
+              <label class="ms-option"><input type="checkbox" data-field="age"> 船員年齡</label>
+              <label class="ms-option"><input type="checkbox" data-field="yoe"> 連續在船天數</label>
+              <div class="ms-sep"></div>
+              <label class="ms-option"><input type="checkbox" data-field="report"> 船員統計報表</label>
+            </div>
+          </div>
+          <div class="notif-hint" style="margin-top:8px;" id="fieldHint">可以同時勾選多個欄位，一次設定成同一顆警報（至少要保留一個，不能全部取消）——下面的「觸發條件」會依選擇的欄位變成分頁，每個分頁各自設定自己的門檻，範圍/頻率/通知設定共用同一份。下面「警報名稱」也會跟著自動組合對應的預設名稱，勾選就加入、取消就移除。「船員統計報表」沒有門檻可設，跟其他欄位互斥，選了會自動取消其他勾選。</div>
+        </div>
+      </div>
+
+      <div class="row" id="row-trigger">
+        <div class="row-label">觸發條件 <small>Trigger Condition</small></div>
+        <div class="row-body d-block">
+          <div class="tab-bar" id="triggerTabs"></div>
+          <div id="triggerPanels"></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="row-label">警報名稱 <small id="nameHint">Alerts Name</small></div>
+        <div class="row-body"><input type="text" id="alarmNameInput" class="form-control" style="width:100%;" value="船員證書到期提醒"></div>
+      </div>
+
+      <div class="row">
+        <div class="row-label">警報範圍 <small>Alerts Scope</small></div>
+        <div class="row-body">
+          <div class="scope-toggle">
+            <button type="button" class="scope-btn active">全船隊</button>
+            <button type="button" class="scope-btn">單船</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="row-label">啟用時間 <small>Effective Date</small></div>
+        <div class="row-body">
+          <div style="display:flex;align-items:center;gap:0;">
+            <span style="background:#2b2f31;border:1px solid #444;border-right:none;border-radius:4px 0 0 4px;padding:6px 10px;color:#c8c8c8;">📅</span>
+            <input type="text" class="form-control" style="border-radius:0 4px 4px 0;width:150px;" value="2026/09/08">
+          </div>
+        </div>
+      </div>
+
+      <div class="row" id="row-detect-freq">
+        <div class="row-label">偵測頻率 <small>Detection Frequency</small></div>
+        <div class="row-body" style="gap:8px;">
+          <select id="detect-mode" class="form-select" style="width:auto;">
+            <option value="scheduled" selected>定時</option>
+            <option value="daily">每天</option>
+            <option value="weekly">每週</option>
+            <option value="monthly">每月</option>
+          </select>
+
+          <div id="detect-scheduled" class="mode-sub show">
+            <span class="unit-text">從</span>
+            <input type="time" value="00:00" class="form-control" style="width:auto;">
+            <span class="unit-text">起，每</span>
+            <input type="number" value="6" min="1" class="form-control" style="width:72px;">
+            <select class="form-select" style="width:auto;">
+              <option>小時</option><option>分鐘</option><option>秒</option>
+            </select>
+            <span class="unit-text">執行一次</span>
+          </div>
+
+          <div id="detect-daily" class="mode-sub">
+            <span class="unit-text">每天</span>
+            <input type="time" value="08:00" class="form-control" style="width:auto;">
+            <span class="unit-text">執行</span>
+          </div>
+
+          <div id="detect-weekly" class="mode-sub mode-col">
+            <div class="weekday-picker">
+              <button type="button" class="weekday-btn">日</button>
+              <button type="button" class="weekday-btn active">一</button>
+              <button type="button" class="weekday-btn">二</button>
+              <button type="button" class="weekday-btn">三</button>
+              <button type="button" class="weekday-btn">四</button>
+              <button type="button" class="weekday-btn">五</button>
+              <button type="button" class="weekday-btn">六</button>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+              <span class="unit-text">的</span>
+              <input type="time" value="08:00" class="form-control" style="width:auto;">
+              <span class="unit-text">執行</span>
+            </div>
+          </div>
+
+          <div id="detect-monthly" class="mode-sub">
+            <span class="unit-text">每月第</span>
+            <input type="number" value="1" min="1" max="28" class="form-control" style="width:72px;">
+            <span class="unit-text">天</span>
+            <input type="time" value="08:00" class="form-control" style="width:auto;">
+            <span class="unit-text">執行</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="row" id="row-alert-freq">
+        <div class="row-label">警報頻率 <small id="freqHint">Alert Frequency</small></div>
+        <div class="row-body" style="gap:8px;">
+          <select id="freq-mode" class="form-select" style="width:auto;">
+            <option value="once" id="opt-once">觸發後僅發送一次</option>
+            <option value="repeat" id="opt-repeat" selected>重複提醒</option>
+            <option value="daily-fixed" id="opt-daily-fixed">每日固定時間</option>
+            <option value="weekly">週報</option>
+            <option value="monthly">月報</option>
+          </select>
+
+          <div id="freq-repeat" class="mode-sub show">
+            <span class="unit-text">每</span>
+            <input type="number" value="1" min="1" class="form-control" style="width:72px;">
+            <select class="form-select" style="width:auto;">
+              <option>分鐘</option><option selected>小時</option><option>天</option>
+            </select>
+            <span class="unit-text">重複一次，最多</span>
+            <input type="number" value="3" min="1" class="form-control" style="width:72px;">
+            <span class="unit-text">次</span>
+          </div>
+
+          <div id="freq-daily-fixed" class="mode-sub">
+            <span class="unit-text">每天</span>
+            <input type="time" value="08:00" class="form-control" style="width:auto;">
+            <span class="unit-text">發送</span>
+          </div>
+
+          <div id="freq-weekly" class="mode-sub">
+            <span class="unit-text">每週</span>
+            <select class="form-select" style="width:auto;">
+              <option>週日</option><option selected>週一</option><option>週二</option><option>週三</option><option>週四</option><option>週五</option><option>週六</option>
+            </select>
+            <input type="time" value="08:00" class="form-control" style="width:auto;">
+            <span class="unit-text">發送彙整報告</span>
+          </div>
+
+          <div id="freq-monthly" class="mode-sub">
+            <span class="unit-text">每月第</span>
+            <input type="number" value="1" min="1" max="28" class="form-control" style="width:72px;">
+            <span class="unit-text">天</span>
+            <input type="time" value="08:00" class="form-control" style="width:auto;">
+            <span class="unit-text">發送彙整報告</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 通知設定：現況（原樣） ============ -->
+      <div class="row">
+        <div class="row-label">通知設定 <small>Notification</small></div>
+        <div class="row-body d-block">
+
+          <div class="check-row" id="NotificationDiv">
+            <label class="check"><input type="checkbox" id="notif-internal" checked> 系統內部使用者</label>
+            <label class="check"><input type="checkbox" id="notif-mail" checked> 自訂 Mail</label>
+            <label class="check new-row"><input type="checkbox" id="notif-dept" checked> 部門<span class="badge-new">NEW</span></label>
+          </div>
+
+          <div class="notif-block show" id="notif-1-block">
+            <div class="notif-title">系統內部使用者 INTERNAL USERS</div>
+            <div class="pill-select">
+              <span class="pill selected">王小明</span>
+              <span class="pill">陳小華</span>
+              <span class="pill dashed">+ 新增使用者</span>
+            </div>
+          </div>
+
+          <div class="notif-block show" id="notif-2-block">
+            <div class="notif-title">自訂 MAIL CUSTOM EMAIL</div>
+            <div class="email-tags">
+              <span class="email-tag">ops@example.com <span class="x">✕</span></span>
+              <input class="email-input-field" placeholder="輸入 Email 後按 Enter 新增…">
+            </div>
+            <div class="notif-hint">按 Enter 或逗號確認，可輸入多個；Backspace 刪除最後一筆</div>
+          </div>
+
+          <!-- ============ 新增：部門 ============ -->
+          <div class="notif-block show new-row" id="notif-3-block">
+            <div class="notif-title">部門 DEPARTMENT<span class="badge-new">NEW</span></div>
+            <div class="pill-select" id="deptChips">
+              <span class="pill dashed selected mono" title="船務部">A0</span>
+              <span class="pill dashed mono" title="機務部">M2</span>
+              <span class="pill dashed mono" title="船員管理部">C1</span>
+              <span class="pill dashed">+ 新增部門</span>
+            </div>
+            <div class="notif-hint" id="deptHint">已選「A0 船務部」，寄送時展開自 <code>DepartmentTable.DPT</code> 對應 <code>SUser.DPT</code> 目前 6 位成員的 Email；若成員本來就在上面個人清單裡，只會收到一封，不重複寄送。</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<!-- 下面兩個示範頁（列表頁／檢視資料頁）用全版寬度展示，跳出上面 1000px 的 Modal 展示區 -->
+<div class="page-full">
+
+  <div class="standalone-title">
+    <h2>警報設定列表 <span class="mono" style="font-size:12px;color:#6b7178;">Alerts-Setting.jsp</span></h2>
+    <span class="badge-new">NEW · 表格標題調整</span>
+  </div>
+  <p class="standalone-sub">因為警報欄位改成複選、一顆警報可以包含多個門檻，原本的「警報欄位」「條件設定」這兩欄放不下多筆內容，所以拿掉；改成把「偵測頻率」「警報頻率」兩欄搬到列表上，讓使用者不用點進去就能看到排程設定。「警報名稱」也改叫「警報(計畫)名稱」，呼應一顆警報現在比較像是一份包含多個檢查項目的「計畫」。</p>
+
+  <div class="list-demo">
+    <div class="list-demo-head">
+      <h5>警報設定 Alerts Setting</h5>
+      <button class="btn btn-sm btn-outline-light" type="button"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-1"/></svg>Back</button>
+    </div>
+
+    <div class="list-search">
+      <div class="ls-field">
+        <label>設置時間 <small>File Creation Time</small></label>
+        <input type="text" class="form-control" placeholder="Start time ~ End time" value="2026/08/01 ~ 2026/09/08">
+      </div>
+      <div class="ls-field" style="max-width:220px;">
+        <label>警報類型 <small>Alerts Type</small></label>
+        <select class="form-select">
+          <option>全部</option>
+          <option selected>船員管理警報</option>
+        </select>
+      </div>
+      <button class="btn btn-outline-primary" type="button" style="height:38px;">清空</button>
+    </div>
+
+    <div class="tbl-scroll">
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th>設置時間<span>Date</span></th>
+            <th>警報類型<span>Alerts Type</span></th>
+            <th>警報(計畫)名稱<span>Alerts Name</span></th>
+            <th class="col-new">偵測頻率<span>Detection Frequency</span></th>
+            <th class="col-new">警報頻率<span>Alert Frequency</span></th>
+            <th>警報範圍<span>Setting Range</span></th>
+            <th>觸發<span>Trigger</span></th>
+            <th>操作<span>Action</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>2026/09/08</td>
+            <td>船員管理警報</td>
+            <td>船員證書到期提醒，船員年齡異常提醒</td>
+            <td class="col-new">定時・每6小時</td>
+            <td class="col-new">重複提醒・每1小時</td>
+            <td>全船隊</td>
+            <td><span class="trig-badge trig-on">3 筆</span></td>
+            <td class="ops">
+              <button class="btn btn-sm btn-primary mr-1"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
+              <button class="btn btn-sm btn-warning mr-1"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit</button>
+              <button class="btn btn-sm btn-danger"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>
+            </td>
+          </tr>
+          <tr>
+            <td>2026/09/05</td>
+            <td>船員管理警報</td>
+            <td>連續在船天數提醒</td>
+            <td class="col-new">每天・08:00</td>
+            <td class="col-new">觸發後僅發送一次</td>
+            <td>單船</td>
+            <td><span class="trig-badge trig-off">0 筆</span></td>
+            <td class="ops">
+              <button class="btn btn-sm btn-primary mr-1"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
+              <button class="btn btn-sm btn-warning mr-1"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit</button>
+              <button class="btn btn-sm btn-danger"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>
+            </td>
+          </tr>
+          <tr>
+            <td>2026/08/20</td>
+            <td>航次警報</td>
+            <td>進出港狀態通知</td>
+            <td class="col-new">定時・每30分鐘</td>
+            <td class="col-new">觸發後僅發送一次</td>
+            <td>全船隊</td>
+            <td><span class="trig-badge trig-on">12 筆</span></td>
+            <td class="ops">
+              <button class="btn btn-sm btn-primary mr-1"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
+              <button class="btn btn-sm btn-warning mr-1"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit</button>
+              <button class="btn btn-sm btn-danger"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>
+            </td>
+          </tr>
+          <tr>
+            <td>2026/08/15</td>
+            <td>船員管理警報</td>
+            <td>船員類週報</td>
+            <td class="col-new">—</td>
+            <td class="col-new">週報・每週一 09:00</td>
+            <td>全船隊</td>
+            <td><span class="trig-badge trig-off">—</span></td>
+            <td class="ops">
+              <button class="btn btn-sm btn-primary mr-1"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>View</button>
+              <button class="btn btn-sm btn-warning mr-1"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit</button>
+              <button class="btn btn-sm btn-danger"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="dataTables_paginate">
+      <button class="paginate_button disabled">Previous</button>
+      <button class="paginate_button current">1</button>
+      <button class="paginate_button">2</button>
+      <button class="paginate_button">Next</button>
+    </div>
+
+    <p class="list-note">最後一列是「船員統計報表」欄位產生的警報——因為報表沒有觸發條件，「偵測頻率」欄位顯示「—」，「觸發」欄位也不適用，直接顯示「—」。操作欄的 View／Edit／Delete 按鈕跟分頁樣式都是照 plugins.js 跟 Alerts.css 裡實際的顏色/class 重現，不是另外設計的。</p>
+  </div>
+
+  <div class="section-gap"></div>
+
+  <div class="standalone-title">
+    <h2>檢視資料 <span class="mono" style="font-size:12px;color:#6b7178;">Alerts-Setting-Detail.jsp</span></h2>
+    <span class="badge-new">NEW · 呼應警報欄位複選</span>
+  </div>
+  <p class="standalone-sub">點列表頁的「View」進來看到的頁面。上面資訊格「條件設定」改名叫「觸發條件」（跟警報設定 Modal 用詞一致），並且補上跟列表頁一樣的「偵測頻率」「警報頻率」「警報範圍」「觸發」四欄，不用切回列表頁就能看到完整排程與觸發狀況；「警報欄位」「觸發條件」也都改成可以列出多個欄位／多組條件。下面搜尋列多加一個「警報欄位」篩選（可以直接點點看），讓混在同一份清單裡的多個欄位結果能單獨篩出來看；「觸發對象」欄的小標籤也是為了方便分辨來源。其餘（查閱狀態篩選、All Clear、勾選批次清除）維持原樣不變。</p>
+
+  <div class="list-demo">
+    <div class="list-demo-head">
+      <h5>檢視資料 View Data</h5>
+      <div>
+        <button class="btn btn-sm btn-outline-primary mr-1"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 12L18 6"/></svg>Alert Dashboards</button>
+        <button class="btn btn-sm btn-outline-light"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-1"/></svg>Back</button>
+      </div>
+    </div>
+
+    <!-- 資訊格：對照 main.jsp 的 YAMIS-Table-grid / grig-td.labe / grig-td.txt -->
+    <div class="info-grid">
+      <div class="info-cell">
+        <div class="info-label">設置時間<span>Date</span></div>
+        <div class="info-value">2026/09/08</div>
+      </div>
+      <div class="info-cell">
+        <div class="info-label">警報類型<span>Alerts Type</span></div>
+        <div class="info-value">船員管理警報</div>
+      </div>
+      <div class="info-cell">
+        <div class="info-label">警報欄位<span>Alerts Item</span></div>
+        <div class="info-value">
+          <span class="field-tag">證書到期</span><span class="field-tag">船員年齡</span>
+        </div>
+      </div>
+      <div class="info-cell">
+        <div class="info-label">警報(計畫)名稱<span>Alerts Name</span></div>
+        <div class="info-value">船員證書到期提醒，船員年齡異常提醒</div>
+      </div>
+      <div class="info-cell">
+        <div class="info-label">偵測頻率<span>Detection Frequency</span></div>
+        <div class="info-value">定時・每6小時</div>
+      </div>
+      <div class="info-cell">
+        <div class="info-label">警報頻率<span>Alert Frequency</span></div>
+        <div class="info-value">重複提醒・每1小時</div>
+      </div>
+      <div class="info-cell">
+        <div class="info-label">警報範圍<span>Setting Range</span></div>
+        <div class="info-value">全船隊</div>
+      </div>
+      <div class="info-cell">
+        <div class="info-label">觸發<span>Trigger</span></div>
+        <div class="info-value"><span class="trig-badge trig-on">3 筆</span></div>
+      </div>
+      <div class="info-cell wide">
+        <div class="info-label">觸發條件<span>Trigger Condition</span></div>
+        <div class="info-value">
+          <div class="cond-line"><span class="field-tag">證書到期</span>即將到期 BEFORE 前 30 天</div>
+          <div class="cond-line"><span class="field-tag">船員年齡</span>年齡 &gt;= 65 歲</div>
+        </div>
+      </div>
+      <div class="info-cell wide">
+        <div class="info-label">操作<span>Action</span></div>
+        <div class="info-value">
+          <button class="btn btn-sm btn-outline-light mr-1"><svg class="btn-ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.2 4.2l4.2 4.2M15.6 15.6l4.2 4.2M1 12h6M17 12h6M4.2 19.8l4.2-4.2M15.6 8.4l4.2-4.2"/></svg>Alerts Setting</button>
+          <button class="btn btn-sm btn-danger"><svg class="btn-ic" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="list-search" style="margin-top:1rem;">
+      <div class="ls-field" style="max-width:180px;">
+        <label>警報欄位 <small>Alerts Field</small><span class="badge-new" style="margin-left:6px;">NEW</span></label>
+        <select class="form-select" id="detailFieldFilter">
+          <option value="">全部</option>
+          <option value="證書到期">證書到期</option>
+          <option value="船員年齡">船員年齡</option>
+        </select>
+      </div>
+      <div class="ls-field" style="max-width:220px;">
+        <label>觸發對象 <small>Trigger</small></label>
+        <select class="form-select">
+          <option>全部</option>
+        </select>
+      </div>
+      <div class="ls-field" style="max-width:160px;">
+        <label>查閱狀態 <small>Read</small></label>
+        <select class="form-select">
+          <option>Unread</option>
+          <option>Clear</option>
+        </select>
+      </div>
+      <div id="detailBulkBar" class="bulk-bar" style="display:none;">
+        <span class="bulk-text">已選 <b id="detailBulkCount">0</b> 個事件，編輯為</span>
+        <select class="form-select" id="detailBulkStatus" style="width:auto;">
+          <option value="0">Unread</option>
+          <option value="1">Clear</option>
+        </select>
+        <button class="btn btn-outline-primary" id="detailBulkApply">套用</button>
+        <button class="btn btn-outline-light" id="detailBulkClearSel">清除選取</button>
+      </div>
+    </div>
+
+    <div class="tbl-scroll">
+      <table class="list-table" id="detailTriggerTable">
+        <thead>
+          <tr>
+            <th style="width:40px;text-align:center;"><input type="checkbox" id="detailSelectAll"></th>
+            <th>警報日期<span>Alerts Date</span></th>
+            <th>觸發對象<span>Trigger</span></th>
+            <th>觸發數值<span>Value</span></th>
+            <th>查閱<span>Read</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-field="證書到期">
+            <td style="text-align:center;"><input type="checkbox" class="row-check"></td>
+            <td>2026/09/08 08:00</td>
+            <td><span class="field-tag">證書到期</span>E0001 / 王小明</td>
+            <td>STCW 基本安全訓練證書・剩 6 天</td>
+            <td><span class="trig-badge trig-on">Unread</span></td>
+          </tr>
+          <tr data-field="船員年齡">
+            <td style="text-align:center;"><input type="checkbox" class="row-check"></td>
+            <td>2026/09/08 08:00</td>
+            <td><span class="field-tag">船員年齡</span>E0005 / 李小龍</td>
+            <td>70 歲（異常）</td>
+            <td><span class="trig-badge trig-on">Unread</span></td>
+          </tr>
+          <tr data-field="證書到期">
+            <td style="text-align:center;"><input type="checkbox" class="row-check"></td>
+            <td>2026/09/05 08:00</td>
+            <td><span class="field-tag">證書到期</span>E0002 / 陳小華</td>
+            <td>海圖電子系統操作證書（ECDIS）・剩 28 天</td>
+            <td><span class="trig-badge trig-off">Clear</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="dataTables_paginate">
+      <button class="paginate_button disabled">Previous</button>
+      <button class="paginate_button current">1</button>
+      <button class="paginate_button">Next</button>
+    </div>
+
+    <p class="list-note">拿掉原本的「All Clear」按鈕，改成只要勾了任何一筆事件，就出現「已選 N 個事件，編輯為 [Unread/Clear] 套用 / 清除選取」這一列——可以指定要把選取的事件改成 Unread 還是 Clear，不是只能一律清成已讀；想一次清空全部，直接用表頭的全選勾選框再套用 Clear 就好，不用另外留一個按鈕。可以直接勾勾看、按套用試試看。「觸發對象」欄前面的小標籤（證書到期／船員年齡）是新加的，只是為了在同一顆警報混合多個欄位結果時方便分辨來源。</p>
+  </div>
+
+  <footer class="foot">SRP_Alarm 通知設定改版提案 · 互動草稿，樣式取自現有 Alerts-Setting-Detail 模組實際 CSS，僅供討論方向使用。自動合併（跨多顆警報寄送時的整併）暫緩討論，這版先聚焦在警報欄位複選。</footer>
+</div>
+
+<script>
+  document.querySelectorAll('#deptChips .pill').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      if (chip.textContent.trim().indexOf('+') === 0) return;
+      chip.classList.toggle('selected');
+      var n = document.querySelectorAll('#deptChips .pill.selected').length;
+      var hint = document.getElementById('deptHint');
+      hint.innerHTML = n === 0
+        ? '目前沒有選擇任何部門——只會通知上面清單裡的個人。'
+        : '已選 <b>' + n + '</b> 個部門，寄送時展開自 <code>DepartmentTable.DPT</code> 對應 <code>SUser.DPT</code> 的成員 Email；重複的收件人只會收到一封。';
+    });
+  });
+
+  function wireModeSwitch(selectId, prefix){
+    var sel = document.getElementById(selectId);
+    if (!sel) return;
+    sel.addEventListener('change', function(){
+      var subs = sel.closest('.row-body').querySelectorAll('.mode-sub');
+      subs.forEach(function(s){ s.classList.remove('show'); });
+      var target = document.getElementById(prefix + sel.value);
+      if (target) target.classList.add('show');
+    });
+  }
+  wireModeSwitch('detect-mode', 'detect-');
+  wireModeSwitch('freq-mode', 'freq-');
+
+  (function(){
+    var multiselect = document.getElementById('fieldMultiselect');
+    var toggle = document.getElementById('fieldToggle');
+    var toggleText = document.getElementById('fieldToggleText');
+    var panel = document.getElementById('fieldPanel');
+    var checkboxes = panel ? panel.querySelectorAll('input[type=checkbox]') : [];
+    var rowDetectFreq = document.getElementById('row-detect-freq');
+    var freqMode = document.getElementById('freq-mode');
+    var optOnce = document.getElementById('opt-once');
+    var optRepeat = document.getElementById('opt-repeat');
+    var optDailyFixed = document.getElementById('opt-daily-fixed');
+    var freqHint = document.getElementById('freqHint');
+    var nameHint = document.getElementById('nameHint');
+    var nameInput = document.getElementById('alarmNameInput');
+    var tabBar = document.getElementById('triggerTabs');
+    var panelsWrap = document.getElementById('triggerPanels');
+    if (!multiselect) return;
+
+    var FIELD_META = {
+      cerexp: {
+        label: '證書到期',
+        defaultName: '船員證書到期提醒',
+        panel: '<select class="form-select" style="width:auto;"><option>即將到期 BEFORE</option><option>已經逾期 AFTER</option></select>' +
+               '<span class="unit-text">前</span><input class="form-control" style="width:72px;" value="30"><span class="unit-text">天</span>'
+      },
+      age: {
+        label: '船員年齡',
+        defaultName: '船員年齡異常提醒',
+        panel: '<span class="unit-text">年齡 &gt;=</span><input class="form-control" style="width:72px;" value="65"><span class="unit-text">歲</span>'
+      },
+      yoe: {
+        label: '連續在船天數',
+        defaultName: '連續在船天數提醒',
+        panel: '<span class="unit-text">連續在船天數 &gt;=</span><input class="form-control" style="width:72px;" value="180"><span class="unit-text">天</span>'
+      }
+    };
+
+    var lastNormalFreq = freqMode.value;
+    var activeTab = 'cerexp';
+    var panelEls = {};
+    var emptyMsgEl = null;
+
+    // ---- 下拉開合 ----
+    toggle.addEventListener('click', function(e){
+      e.stopPropagation();
+      multiselect.classList.toggle('open');
+    });
+    document.addEventListener('click', function(e){
+      if (!multiselect.contains(e.target)) multiselect.classList.remove('open');
+    });
+
+    function selectedFields(){
+      var out = [];
+      checkboxes.forEach(function(cb){ if (cb.checked) out.push(cb.getAttribute('data-field')); });
+      return out;
+    }
+
+    function updateToggleText(fields){
+      if (fields.length === 0){
+        toggleText.textContent = '請選擇警報欄位';
+      } else if (fields.length === 1){
+        toggleText.textContent = FIELD_META[fields[0]] ? FIELD_META[fields[0]].label : '船員統計報表';
+      } else {
+        toggleText.textContent = fields.map(function(f){
+          return FIELD_META[f] ? FIELD_META[f].label : '船員統計報表';
+        }).join('、');
+      }
+    }
+
+    function renderTabs(){
+      var fields = selectedFields();
+      var isReport = fields.indexOf('report') !== -1;
+      var realFields = fields.filter(function(f){ return f !== 'report'; });
+
+      updateToggleText(fields);
+
+      rowDetectFreq.style.display = isReport ? 'none' : '';
+      [optOnce, optRepeat, optDailyFixed].forEach(function(o){ o.disabled = isReport; });
+
+      if (isReport){
+        lastNormalFreq = freqMode.value;
+        nameInput.value = '船員類週報';
+        nameHint.textContent = 'Report Name（沿用這個欄位當報表名稱）';
+        freqHint.textContent = 'Report Schedule（報表只能選週報／月報，不是提醒頻率）';
+        if (freqMode.value === 'once' || freqMode.value === 'repeat' || freqMode.value === 'daily-fixed'){
+          freqMode.value = 'weekly';
+          freqMode.dispatchEvent(new Event('change'));
+        }
+      } else {
+        // 依目前勾選的欄位，組合預設警報名稱——加一個補上對應名稱，取消一個就移除對應名稱
+        nameInput.value = realFields.map(function(f){ return FIELD_META[f].defaultName; }).join('，');
+        nameHint.textContent = 'Alerts Name';
+        freqHint.textContent = 'Alert Frequency';
+        freqMode.value = lastNormalFreq;
+        freqMode.dispatchEvent(new Event('change'));
+      }
+
+      // ---- 觸發條件分頁 ----
+      // 分頁的 DOM 節點保留在 panelEls 裡跨次重用，避免切分頁/勾選其他欄位時
+      // 把使用者已經填在別的分頁裡的值洗掉。
+      tabBar.innerHTML = '';
+
+      if (emptyMsgEl && emptyMsgEl.parentNode) emptyMsgEl.parentNode.removeChild(emptyMsgEl);
+
+      if (isReport){
+        Object.keys(panelEls).forEach(function(k){ panelEls[k].style.display = 'none'; });
+        emptyMsgEl = document.createElement('div');
+        emptyMsgEl.className = 'trigger-empty';
+        emptyMsgEl.textContent = '「船員統計報表」沒有觸發條件可設定，會依上面的排程直接產出完整現況報表。';
+        panelsWrap.appendChild(emptyMsgEl);
+        return;
+      }
+
+      if (realFields.length === 0){
+        Object.keys(panelEls).forEach(function(k){ panelEls[k].style.display = 'none'; });
+        emptyMsgEl = document.createElement('div');
+        emptyMsgEl.className = 'trigger-empty';
+        emptyMsgEl.textContent = '請先在上面「警報欄位」至少勾選一個項目。';
+        panelsWrap.appendChild(emptyMsgEl);
+        return;
+      }
+
+      if (realFields.indexOf(activeTab) === -1){
+        activeTab = realFields[0];
+      }
+
+      // 移除已經取消勾選的欄位分頁（連同裡面填的值一起丟棄，這是合理的）
+      Object.keys(panelEls).forEach(function(key){
+        if (realFields.indexOf(key) === -1){
+          panelEls[key].remove();
+          delete panelEls[key];
+        }
+      });
+
+      realFields.forEach(function(key){
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tab-btn' + (key === activeTab ? ' active' : '');
+        btn.textContent = FIELD_META[key].label;
+        btn.addEventListener('click', function(){
+          activeTab = key;
+          renderTabs();
+        });
+        tabBar.appendChild(btn);
+
+        if (!panelEls[key]){
+          // 第一次選到這個欄位，才建立分頁內容；之後保留同一個節點，不重建
+          var tPanel = document.createElement('div');
+          tPanel.className = 'tab-panel';
+          tPanel.innerHTML = FIELD_META[key].panel;
+          panelsWrap.appendChild(tPanel);
+          panelEls[key] = tPanel;
+        }
+        panelEls[key].style.display = (key === activeTab) ? 'flex' : 'none';
+        panelEls[key].classList.toggle('show', key === activeTab);
+      });
+    }
+
+    checkboxes.forEach(function(cb){
+      cb.addEventListener('change', function(){
+        var key = cb.getAttribute('data-field');
+
+        // 至少要保留一個欄位，不能全部取消
+        if (!cb.checked && selectedFields().length === 0){
+          cb.checked = true;
+          return;
+        }
+
+        if (key === 'report'){
+          if (cb.checked){
+            checkboxes.forEach(function(other){ if (other !== cb) other.checked = false; });
+          }
+        } else if (cb.checked){
+          panel.querySelector('[data-field="report"]').checked = false;
+        }
+
+        renderTabs();
+      });
+    });
+
+    renderTabs();
+  })();
+
+  [['notif-internal','notif-1-block'],['notif-mail','notif-2-block'],['notif-dept','notif-3-block']].forEach(function(pair){
+    var cb = document.getElementById(pair[0]);
+    var block = document.getElementById(pair[1]);
+    if (!cb || !block) return;
+    cb.addEventListener('change', function(){
+      block.classList.toggle('show', cb.checked);
+    });
+  });
+
+  document.querySelectorAll('.scope-toggle, .weekday-picker').forEach(function(group){
+    group.querySelectorAll('button').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        if (group.classList.contains('weekday-picker')){
+          btn.classList.toggle('active');
+        } else {
+          group.querySelectorAll('button').forEach(function(b){ b.classList.remove('active'); });
+          btn.classList.add('active');
+        }
+      });
+    });
+  });
+
+  // 自動合併示範功能暫緩，先整段移除，日後需要時可從 git 歷史找回。
+
+  (function(){
+    var sel = document.getElementById('detailFieldFilter');
+    var table = document.getElementById('detailTriggerTable');
+    if (!sel || !table) return;
+    sel.addEventListener('change', function(){
+      var rows = table.querySelectorAll('tbody tr');
+      rows.forEach(function(row){
+        var f = row.getAttribute('data-field');
+        row.style.display = (!sel.value || sel.value === f) ? '' : 'none';
+      });
+    });
+  })();
+
+  (function(){
+    var table = document.getElementById('detailTriggerTable');
+    var selectAll = document.getElementById('detailSelectAll');
+    var bulkBar = document.getElementById('detailBulkBar');
+    var bulkCount = document.getElementById('detailBulkCount');
+    var bulkStatus = document.getElementById('detailBulkStatus');
+    var bulkApply = document.getElementById('detailBulkApply');
+    var bulkClearSel = document.getElementById('detailBulkClearSel');
+    if (!table || !bulkBar) return;
+
+    function rowChecks(){
+      return Array.from(table.querySelectorAll('tbody .row-check'));
+    }
+
+    function refresh(){
+      var checked = rowChecks().filter(function(cb){ return cb.checked; });
+      if (checked.length > 0){
+        bulkCount.textContent = checked.length;
+        bulkBar.style.display = 'flex';
+      } else {
+        bulkBar.style.display = 'none';
+      }
+      if (selectAll){
+        var all = rowChecks();
+        selectAll.checked = all.length > 0 && checked.length === all.length;
+      }
+    }
+
+    rowChecks().forEach(function(cb){
+      cb.addEventListener('change', refresh);
+    });
+
+    if (selectAll){
+      selectAll.addEventListener('change', function(){
+        rowChecks().forEach(function(cb){ cb.checked = selectAll.checked; });
+        refresh();
+      });
+    }
+
+    if (bulkApply){
+      bulkApply.addEventListener('click', function(){
+        var toClear = bulkStatus.value === '1';
+        rowChecks().forEach(function(cb){
+          if (!cb.checked) return;
+          var badge = cb.closest('tr').querySelector('.trig-badge');
+          if (badge){
+            badge.textContent = toClear ? 'Clear' : 'Unread';
+            badge.classList.toggle('trig-on', !toClear);
+            badge.classList.toggle('trig-off', toClear);
+          }
+          cb.checked = false;
+        });
+        refresh();
+      });
+    }
+
+    if (bulkClearSel){
+      bulkClearSel.addEventListener('click', function(){
+        rowChecks().forEach(function(cb){ cb.checked = false; });
+        refresh();
+      });
+    }
+
+    refresh();
+  })();
+</script>
+</body>
+</html>
